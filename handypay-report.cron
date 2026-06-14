@@ -1,0 +1,1 @@
+0 */12 * * * cd /home/codex/handypay-ai-agent && /usr/bin/node scripts/generate-report.js 12 --send >> /home/codex/handypay-ai-agent/logs/report-cron.log 2>&1
