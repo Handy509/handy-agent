@@ -15,9 +15,9 @@
     "@anthropic-ai/sdk": "^0.39.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "imapflow": "^1.3.2",
-    "mailparser": "^3.9.8",
-    "nodemailer": "^8.0.7",
+    "imapflow": "^1.4.2",
+    "mailparser": "^3.9.11",
+    "nodemailer": "^9.0.1",
     "openai": "^4.77.0",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0"
