@@ -3,7 +3,24 @@ const { memoryText } = require("./memory");
 const { createTask } = require("./tasks");
 const { createSocialComment, createSocialPost } = require("./operationsApi");
 
-const sensitiveTopics = ["balance", "balans", "kyc", "transaction", "tranzaksyon", "card", "kat", "cvv", "pin"];
+const sensitiveTopics = [
+  "balance",
+  "balans",
+  "kyc",
+  "transaction",
+  "tranzaksyon",
+  "payment",
+  "peman",
+  "deposit",
+  "depo",
+  "withdraw",
+  "retrait",
+  "card",
+  "kat",
+  "pan",
+  "cvv",
+  "pin"
+];
 
 function classifyComment(text = "") {
   const value = String(text).toLowerCase();
@@ -11,7 +28,7 @@ function classifyComment(text = "") {
     ["arnaque/spam", ["spam", "scam", "arnaque", "fake", "hack"]],
     ["plainte", ["vole", "fraud", "plent", "complaint", "pa mache", "fache"]],
     ["question carte", ["kat", "card", "visa", "mastercard", "cvv"]],
-    ["dépôt/retrait", ["depo", "depot", "alimentation", "retrait", "withdraw", "moncash", "natcash"]],
+    ["dépôt/retrait", ["depo", "depot", "deposit", "payment", "peman", "alimentation", "retrait", "withdraw", "moncash", "natcash"]],
     ["KYC", ["kyc", "verify", "verification", "id", "selfie"]],
     ["support", ["support", "help", "aide", "ede", "pwoblem"]],
     ["marketing opportunity", ["price", "business", "partnership", "api", "white label"]]
@@ -30,7 +47,7 @@ function proposedReplyForComment({ text = "", author = "" }) {
       category,
       sensitive: true,
       reply:
-        "Mesi paske ou kontakte HandyPay. Pou sekirite kont ou, tanpri ekri support prive ak email kont ou + screenshot si sa nesese. Nou pa verifye balans, kat, KYC, oswa tranzaksyon nan komante piblik."
+        "Mesi paske ou kontakte HandyPay. Pou sekirite kont ou, tanpri ekri support prive ak email kont ou + screenshot si sa nesese. Nou pa verifye balans, kat, KYC, peman, oswa tranzaksyon nan komante piblik."
     };
   }
 
