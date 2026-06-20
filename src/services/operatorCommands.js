@@ -1,4 +1,10 @@
 const { addMemoryEntry } = require("./memory");
+const {
+  clearOperationalSnapshots,
+  getConnectorStatus,
+  pauseConnector,
+  refreshOperationalData
+} = require("./operationalConnectors");
 const { createDailyPostDraft } = require("./socialAutomation");
 const { setAutomationPaused, taskAction } = require("./tasks");
 
@@ -9,7 +15,12 @@ const COMMANDS = new Set([
   "pause_automation",
   "resume_automation",
   "create_social_draft",
-  "add_memory_item"
+  "add_memory_item",
+  "refresh_operational_data",
+  "get_connector_status",
+  "pause_connector",
+  "resume_connector",
+  "clear_operational_snapshots"
 ]);
 
 function commandError(message, statusCode = 422) {
@@ -18,7 +29,7 @@ function commandError(message, statusCode = 422) {
   return error;
 }
 
-async function runOperatorCommand({ command, taskId, memoryItem, reason, actor = "admin" } = {}) {
+async function runOperatorCommand({ command, taskId, connector, memoryItem, reason, actor = "admin" } = {}) {
   const normalized = String(command || "").trim();
   if (!COMMANDS.has(normalized)) {
     throw commandError("Unsupported operator command");
@@ -68,6 +79,30 @@ async function runOperatorCommand({ command, taskId, memoryItem, reason, actor =
       command: normalized,
       result: await addMemoryEntry(memoryItem)
     };
+  }
+
+  if (normalized === "refresh_operational_data") {
+    return { command: normalized, result: await refreshOperationalData() };
+  }
+
+  if (normalized === "get_connector_status") {
+    return { command: normalized, result: await getConnectorStatus() };
+  }
+
+  if (normalized === "pause_connector") {
+    const name = connector || taskId;
+    if (!name) throw commandError("connector is required");
+    return { command: normalized, result: await pauseConnector(String(name), true, reason) };
+  }
+
+  if (normalized === "resume_connector") {
+    const name = connector || taskId;
+    if (!name) throw commandError("connector is required");
+    return { command: normalized, result: await pauseConnector(String(name), false, reason) };
+  }
+
+  if (normalized === "clear_operational_snapshots") {
+    return { command: normalized, result: await clearOperationalSnapshots() };
   }
 
   throw commandError("Unsupported operator command");

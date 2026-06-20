@@ -1,6 +1,7 @@
 const { healthReport } = require("./monitoring");
 const { loadMemory } = require("./memory");
 const { dashboard, readTasks } = require("./tasks");
+const { latestOperationalSnapshot } = require("./operationalConnectors");
 
 function latestMemoryChanges(memory, limit = 8) {
   return Object.entries(memory.categories || {})
@@ -68,8 +69,25 @@ function marketingOpportunities(memory, tasks) {
   return [...taskItems, ...memoryItems].slice(0, 8);
 }
 
-function recommendedActions({ health, taskDashboard, tasks, socialDrafts, supportRisks }) {
+function operationalSection(summaries, source) {
+  return summaries.filter((summary) => summary.source === source);
+}
+
+function recommendedActions({ health, taskDashboard, tasks, socialDrafts, supportRisks, operationalSummaries = [] }) {
   const actions = [];
+  const severeOperationalItems = operationalSummaries.filter((item) => ["critical", "warning"].includes(item.severity));
+
+  for (const item of severeOperationalItems) {
+    actions.push({
+      priority: item.severity === "critical" ? 1 : 2,
+      type: "operational_signal",
+      source: item.source,
+      title: `Review ${item.source} alert`,
+      reason: item.safeSummary,
+      safeExecution: "manual_review_only",
+      recommendedNextAction: item.recommendedNextAction
+    });
+  }
 
   if (!health.disk.ok || Number(health.disk.usedPercent || 0) >= 85) {
     actions.push({
@@ -147,6 +165,8 @@ async function dailyBrief() {
     loadMemory(),
     readTasks()
   ]);
+  const operational = await latestOperationalSnapshot();
+  const operationalSummaries = operational.summaries || [];
 
   const newTasks = taskSummary(tasks, (task) => task.status === "pending", 10);
   const failedTasks = taskSummary(tasks, (task) => task.status === "failed", 10);
@@ -167,9 +187,31 @@ async function dailyBrief() {
       taskCounts: taskDashboard.counts,
       automationPaused: Boolean(taskDashboard.automation?.paused),
       socialDraftMode: health.socialConnectors.x.draftMode,
-      socialAutoPostEnabled: health.socialConnectors.x.autoPostEnabled
+      socialAutoPostEnabled: health.socialConnectors.x.autoPostEnabled,
+      operationalSignals: operationalSummaries.length
     },
+    systemHealth: health,
     health,
+    backendOperationalAlerts: operationalSection(operationalSummaries, "handypay_backend"),
+    failedJobsAndRetries: [
+      ...failedTasks.map((task) => ({
+        source: task.source,
+        timestamp: task.lastRunAt || task.createdAt,
+        severity: "warning",
+        safeSummary: task.title,
+        recommendedNextAction: "Review failed task and retry manually if safe.",
+        taskId: task.id,
+        retries: task.retries
+      })),
+      ...operationalSection(operationalSummaries, "handypay_backend")
+    ],
+    campaignSummary: operationalSection(operationalSummaries, "campaigns"),
+    cardProviderStatus: operationalSection(operationalSummaries, "card_providers"),
+    supportRiskSummary: operationalSection(operationalSummaries, "handypay_backend").map((item) => ({
+      ...item,
+      safeSummary: `Support-risk aggregate from backend: ${item.counts?.supportRisks || 0} item(s).`
+    })),
+    operationalSignals: operational,
     newTasks,
     failedTasks,
     memoryChanges: latestMemoryChanges(memory),
@@ -181,7 +223,8 @@ async function dailyBrief() {
       taskDashboard,
       tasks,
       socialDrafts,
-      supportRisks
+      supportRisks,
+      operationalSummaries
     }),
     safetyRules: [
       "Never expose customer balance, card data, KYC, transaction details, PAN, CVV, or secure URLs publicly.",
