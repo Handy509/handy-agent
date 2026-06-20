@@ -12,6 +12,8 @@ let running = false;
 let consecutiveFailures = 0;
 let nextAttemptAt = 0;
 let lastFailureLogAt = 0;
+let lastSuccessAt = null;
+let lastFailure = null;
 
 const HANDYPAY_KEYWORDS = [
   "handypay",
@@ -310,6 +312,8 @@ async function processUnreadEmails() {
     }
     consecutiveFailures = 0;
     nextAttemptAt = 0;
+    lastFailure = null;
+    lastSuccessAt = new Date().toISOString();
   } catch (error) {
     consecutiveFailures += 1;
     const retryLimit = Math.max(1, config.emailRetryLimit);
@@ -318,6 +322,11 @@ async function processUnreadEmails() {
         ? Math.min(30000, 5000 * consecutiveFailures)
         : Math.max(60, config.emailFailureBackoffSeconds) * 1000;
     nextAttemptAt = Date.now() + retryDelayMs;
+    lastFailure = {
+      code: error?.code || error?.name || "EMAIL_POLL_FAILED",
+      message: error?.message || "Email polling failed",
+      at: new Date().toISOString()
+    };
 
     const cooldownMs = Math.max(60, config.emailFailureLogCooldownSeconds) * 1000;
     const shouldLog =
@@ -347,6 +356,17 @@ async function processUnreadEmails() {
   }
 }
 
+function getEmailSupportStatus() {
+  return {
+    configured: isConfigured(),
+    running,
+    consecutiveFailures,
+    nextAttemptAt: nextAttemptAt ? new Date(nextAttemptAt).toISOString() : null,
+    lastSuccessAt,
+    lastFailure
+  };
+}
+
 function startEmailSupportMonitor() {
   if (!isConfigured()) {
     logger.info("Email support monitor disabled or not configured");
@@ -365,4 +385,10 @@ function stopEmailSupportMonitor() {
   pollTimer = null;
 }
 
-module.exports = { classifyEmail, processUnreadEmails, startEmailSupportMonitor, stopEmailSupportMonitor };
+module.exports = {
+  classifyEmail,
+  getEmailSupportStatus,
+  processUnreadEmails,
+  startEmailSupportMonitor,
+  stopEmailSupportMonitor
+};

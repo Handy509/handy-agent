@@ -10,6 +10,11 @@ const { appendJsonLine, readJson, writeJson } = require("./services/storage");
 const { sendTelegramAlert } = require("./services/telegram");
 const { classifySupportIntent } = require("./services/supportIntent");
 const { startGrowthAgent } = require("./services/growthAgent");
+const { requireAdmin } = require("./services/security");
+const { addMemoryEntry, loadMemory } = require("./services/memory");
+const { createCommentReviewTask, createDailyPostDraft } = require("./services/socialAutomation");
+const { dashboard, taskAction } = require("./services/tasks");
+const { healthReport } = require("./services/monitoring");
 
 const app = express();
 const WEB_CHAT_FILE = "web-chat-sessions.json";
@@ -23,7 +28,7 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
   }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Kethura-Admin-Token");
   res.setHeader("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
@@ -51,6 +56,85 @@ app.get("/health", (_req, res) => {
     env: config.nodeEnv,
     time: new Date().toISOString()
   });
+});
+
+app.get("/api/admin/kethura/memory", requireAdmin, async (_req, res, next) => {
+  try {
+    res.json({ ok: true, memory: await loadMemory() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/kethura/memory", requireAdmin, async (req, res, next) => {
+  try {
+    const entry = await addMemoryEntry(req.body || {});
+    res.status(201).json({ ok: true, entry });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/kethura/tasks", requireAdmin, async (_req, res, next) => {
+  try {
+    res.json({ ok: true, dashboard: await dashboard() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/admin/kethura/tasks", requireAdmin, async (_req, res, next) => {
+  try {
+    const data = await dashboard();
+    res.type("html").send(`<!doctype html>
+<html><head><meta charset="utf-8"><title>Kéthura Tasks</title>
+<style>body{font-family:system-ui;background:#0f172a;color:#e5e7eb;margin:0;padding:24px}table{width:100%;border-collapse:collapse;background:#111827}td,th{padding:10px;border-bottom:1px solid #243044;text-align:left}.cards{display:flex;gap:12px;margin:16px 0}.card{background:#111827;border:1px solid #243044;border-radius:8px;padding:14px}button{border:0;border-radius:6px;padding:7px 10px;margin-right:6px}</style></head>
+<body><h1>Kéthura Tasks</h1><div class="cards">${Object.entries(data.counts)
+      .map(([key, value]) => `<div class="card"><strong>${key}</strong><br>${value}</div>`)
+      .join("")}</div>
+<table><thead><tr><th>Priority</th><th>Status</th><th>Source</th><th>Retries</th><th>Last run</th><th>Task</th><th>Actions</th></tr></thead><tbody>
+${data.tasks
+      .map(
+        (task) =>
+          `<tr><td>${task.priority}</td><td>${task.status}</td><td>${task.source}</td><td>${task.retries}</td><td>${task.lastRunAt || ""}</td><td>${task.title}</td><td>retry approve reject pause</td></tr>`
+      )
+      .join("")}</tbody></table></body></html>`);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/kethura/tasks/:id/:action", requireAdmin, async (req, res, next) => {
+  try {
+    const task = await taskAction(String(req.params.id), String(req.params.action));
+    res.json({ ok: true, task });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/kethura/social/daily-post-draft", requireAdmin, async (_req, res, next) => {
+  try {
+    res.status(201).json({ ok: true, draft: await createDailyPostDraft() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/kethura/social/comment-review", requireAdmin, async (req, res, next) => {
+  try {
+    res.status(201).json({ ok: true, review: await createCommentReviewTask(req.body || {}) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/kethura/health", requireAdmin, async (_req, res, next) => {
+  try {
+    res.json({ ok: true, health: await healthReport() });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/widget.js", (_req, res) => {
@@ -465,7 +549,10 @@ app.use((error, req, res, _next) => {
   requestLogger.error({ error }, "Unhandled request error");
 
   if (res.headersSent) return;
-  res.status(500).json({ ok: false, error: "Internal server error" });
+  res.status(error.statusCode || 500).json({
+    ok: false,
+    error: error.statusCode ? error.message : "Internal server error"
+  });
 });
 
 function startServer() {

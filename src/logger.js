@@ -10,7 +10,19 @@ const logger = pino({
       "openaiApiKey",
       "anthropicApiKey",
       "telegramBotToken",
-      "handypayApiToken"
+      "handypayApiToken",
+      "adminToken",
+      "xApiKey",
+      "xApiSecret",
+      "xAccessToken",
+      "xAccessTokenSecret",
+      "*.authorization",
+      "*.token",
+      "*.secret",
+      "*.password",
+      "*.apiKey",
+      "*.accessToken",
+      "req.headers.x-kethura-admin-token"
     ],
     censor: "[redacted]"
   }

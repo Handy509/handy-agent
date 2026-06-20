@@ -2,6 +2,7 @@ const { config } = require("../config");
 const { logger } = require("../logger");
 const { readJson, writeJson } = require("./storage");
 const { createOpportunity, createSocialPost } = require("./operationsApi");
+const { createDailyPostDraft } = require("./socialAutomation");
 
 const STATE_FILE = "growth-agent-state.json";
 let timer = null;
@@ -33,7 +34,9 @@ async function runDailyGrowthCycle(force = false) {
       return { skipped: true, reason: "not_due" };
     }
 
-    const post = await createSocialPost(dailyWorldCupDraft(date));
+    const post = config.socialDailyPostEnabled
+      ? await createDailyPostDraft(now)
+      : await createSocialPost(dailyWorldCupDraft(date));
     const opportunity = await createOpportunity({
       title: "Use World Cup predictions to recover KYC-to-card drop-off",
       description:

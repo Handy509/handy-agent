@@ -6,6 +6,7 @@ const config = {
   publicBaseUrl: process.env.PUBLIC_BASE_URL || "http://localhost:3007",
   dataDir: process.env.DATA_DIR || "./data",
   logLevel: process.env.LOG_LEVEL || "info",
+  adminToken: process.env.KETHURA_ADMIN_TOKEN || "",
 
   aiProvider: (process.env.AI_PROVIDER || "openai").toLowerCase(),
   openaiApiKey: process.env.OPENAI_API_KEY || "",
@@ -43,6 +44,14 @@ const config = {
   growthAgentEnabled: process.env.GROWTH_AGENT_ENABLED === "true",
   growthAgentRunHourUtc: Number(process.env.GROWTH_AGENT_RUN_HOUR_UTC || 10),
   growthAgentCheckMinutes: Number(process.env.GROWTH_AGENT_CHECK_MINUTES || 30),
+  socialAutoPostEnabled: process.env.SOCIAL_AUTO_POST_ENABLED === "true",
+  socialDraftMode: process.env.SOCIAL_DRAFT_MODE !== "false",
+  socialDailyPostEnabled: process.env.SOCIAL_DAILY_POST_ENABLED === "true",
+  socialDailyPostHourUtc: Number(process.env.SOCIAL_DAILY_POST_HOUR_UTC || 14),
+  xApiKey: process.env.X_API_KEY || "",
+  xApiSecret: process.env.X_API_SECRET || "",
+  xAccessToken: process.env.X_ACCESS_TOKEN || "",
+  xAccessTokenSecret: process.env.X_ACCESS_TOKEN_SECRET || "",
 
   freeMessageLimitPerDay: Number(process.env.FREE_MESSAGE_LIMIT_PER_DAY || 20),
   vipAccessPriceUsd: Number(process.env.VIP_ACCESS_PRICE_USD || 1),

@@ -1,6 +1,7 @@
 const { config } = require("../config");
 const { generateReport } = require("../../scripts/generate-report");
 const { setVipAccess } = require("./vip");
+const { addMemoryEntry, CATEGORIES } = require("./memory");
 
 function normalizePhone(phone = "") {
   return String(phone).replace(/\D/g, "");
@@ -41,13 +42,33 @@ function parseVipApprove(text = "") {
   return match ? match[1].replace(/\D/g, "") : "";
 }
 
+function parseMemoryAdd(text = "") {
+  const match = String(text).trim().match(/^\/?memory\s+add\s+([^|]+)\|([^|]+)\|([\s\S]+)$/i);
+  if (!match) return null;
+  return {
+    category: match[1].trim(),
+    title: match[2].trim(),
+    body: match[3].trim(),
+    source: "whatsapp_admin_command"
+  };
+}
+
 async function handleAdminCommand({ from, text }) {
   const vipPhone = parseVipApprove(text);
+  const memoryEntry = parseMemoryAdd(text);
 
-  if (!isReportCommand(text) && !vipPhone) return null;
+  if (!isReportCommand(text) && !vipPhone && !memoryEntry) return null;
 
   if (!isAdminPhone(from)) {
     return "Mwen pa gen akse pou bay rapo oswa done admin.\nPou sa, ekri admin HandyPay sou WhatsApp/Telegram: +1 (913) 733-7645.";
+  }
+
+  if (memoryEntry) {
+    if (!CATEGORIES.includes(memoryEntry.category)) {
+      return `Kategori memory pa valid. Itilize youn ladan yo:\n${CATEGORIES.join("\n")}`;
+    }
+    const entry = await addMemoryEntry(memoryEntry);
+    return `Memory Kethura mete ajou.\nKategori: ${entry.category}\nTit: ${entry.title}`;
   }
 
   if (vipPhone) {
