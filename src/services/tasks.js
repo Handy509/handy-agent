@@ -2,6 +2,7 @@ const { readJson, writeJson } = require("./storage");
 const { redactValue } = require("./security");
 
 const TASKS_FILE = "kethura-tasks.json";
+const AUTOMATION_STATE_FILE = "kethura-automation-state.json";
 
 async function readTasks() {
   return readJson(TASKS_FILE, []);
@@ -9,6 +10,26 @@ async function readTasks() {
 
 async function writeTasks(tasks) {
   await writeJson(TASKS_FILE, tasks);
+}
+
+async function automationState() {
+  return readJson(AUTOMATION_STATE_FILE, {
+    paused: false,
+    updatedAt: null,
+    updatedBy: null,
+    reason: ""
+  });
+}
+
+async function setAutomationPaused(paused, { updatedBy = "admin", reason = "" } = {}) {
+  const state = {
+    paused: Boolean(paused),
+    updatedAt: new Date().toISOString(),
+    updatedBy: String(updatedBy).slice(0, 120),
+    reason: String(reason || "").slice(0, 500)
+  };
+  await writeJson(AUTOMATION_STATE_FILE, state);
+  return state;
 }
 
 async function createTask(task) {
@@ -53,6 +74,7 @@ async function updateTask(id, patch) {
 
 async function dashboard() {
   const tasks = await readTasks();
+  const automation = await automationState();
   const counts = tasks.reduce(
     (memo, task) => {
       memo[task.status] = (memo[task.status] || 0) + 1;
@@ -63,6 +85,7 @@ async function dashboard() {
 
   return {
     counts,
+    automation,
     tasks: tasks.slice(0, 100).map((task) => ({
       id: task.id,
       type: task.type,
@@ -102,4 +125,12 @@ async function taskAction(id, action) {
   return updateTask(id, patch);
 }
 
-module.exports = { createTask, dashboard, readTasks, taskAction, updateTask };
+module.exports = {
+  automationState,
+  createTask,
+  dashboard,
+  readTasks,
+  setAutomationPaused,
+  taskAction,
+  updateTask
+};

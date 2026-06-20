@@ -15,6 +15,8 @@ const { addMemoryEntry, loadMemory } = require("./services/memory");
 const { createCommentReviewTask, createDailyPostDraft } = require("./services/socialAutomation");
 const { dashboard, taskAction } = require("./services/tasks");
 const { healthReport } = require("./services/monitoring");
+const { dailyBrief } = require("./services/dailyBrief");
+const { runOperatorCommand } = require("./services/operatorCommands");
 
 const app = express();
 const WEB_CHAT_FILE = "web-chat-sessions.json";
@@ -78,6 +80,26 @@ app.post("/api/admin/kethura/memory", requireAdmin, async (req, res, next) => {
 app.get("/api/admin/kethura/tasks", requireAdmin, async (_req, res, next) => {
   try {
     res.json({ ok: true, dashboard: await dashboard() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/kethura/daily-brief", requireAdmin, async (_req, res, next) => {
+  try {
+    res.json({ ok: true, brief: await dailyBrief() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/kethura/command", requireAdmin, async (req, res, next) => {
+  try {
+    const result = await runOperatorCommand({
+      ...(req.body || {}),
+      actor: "admin_api"
+    });
+    res.json({ ok: true, ...result });
   } catch (error) {
     next(error);
   }

@@ -11,8 +11,11 @@ const SENSITIVE_KEYS = [
   "pan",
   "cvv",
   "card_number",
+  "cardnumber",
   "secure_url",
-  "secure_widget_url"
+  "secureurl",
+  "secure_widget_url",
+  "securewidgeturl"
 ];
 
 function redactValue(value) {
