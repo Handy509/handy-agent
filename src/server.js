@@ -18,6 +18,7 @@ const { healthReport } = require("./services/monitoring");
 const { dailyBrief } = require("./services/dailyBrief");
 const { runOperatorCommand } = require("./services/operatorCommands");
 const { getConnectorStatus, refreshOperationalData } = require("./services/operationalConnectors");
+const { startAutonomousScheduler } = require("./services/scheduler");
 
 const app = express();
 const WEB_CHAT_FILE = "web-chat-sessions.json";
@@ -599,6 +600,7 @@ function startServer() {
     logger.info({ port: config.port }, "HandyPay AI Operations Agent started");
     startEmailSupportMonitor();
     startGrowthAgent();
+    startAutonomousScheduler();
   });
 }
 

@@ -50,3 +50,32 @@ test("no environment or private-key files are committed in the working tree", ()
 
   assert.deepEqual(forbidden, []);
 });
+
+test("request logger redacts webhook signature and auth headers", async () => {
+  const { createLogger } = require("../src/logger");
+  const chunks = [];
+  const destination = {
+    write(chunk) {
+      chunks.push(String(chunk));
+    }
+  };
+  const log = createLogger(destination);
+
+  log.info({
+    req: {
+      headers: {
+        authorization: "Bearer private-token",
+        cookie: "session=private",
+        "set-cookie": "session=private",
+        "x-hub-signature": "sha1=raw-facebook-signature",
+        "x-hub-signature-256": "sha256=raw-facebook-signature",
+        "x-signature": "raw-provider-signature",
+        "x-whatsapp-signature": "raw-whatsapp-signature"
+      }
+    }
+  }, "request completed");
+
+  const output = chunks.join("");
+  assert.doesNotMatch(output, /private-token|session=private|raw-facebook-signature|raw-provider-signature|raw-whatsapp-signature/);
+  assert.match(output, /\[redacted\]/);
+});

@@ -35,19 +35,55 @@ async function setAutomationPaused(paused, { updatedBy = "admin", reason = "" } 
 async function createTask(task) {
   const tasks = await readTasks();
   const now = new Date().toISOString();
+  const dedupeKey = String(task.dedupeKey || `${task.source || "kethura"}:${task.type || "general"}:${task.title || "Kethura task"}`)
+    .toLowerCase()
+    .slice(0, 240);
+  const duplicate = tasks.find(
+    (item) => item.dedupeKey === dedupeKey && !["resolved", "rejected"].includes(item.status)
+  );
+
+  if (duplicate) {
+    duplicate.lastSeenAt = now;
+    duplicate.updatedAt = now;
+    duplicate.history = [
+      ...(duplicate.history || []),
+      {
+        at: now,
+        action: "duplicate_seen",
+        note: String(task.recommendedAction || task.reason || "").slice(0, 500)
+      }
+    ].slice(-50);
+    await writeTasks(tasks);
+    return duplicate;
+  }
+
   const record = {
     id: task.id || `task_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
     type: task.type || "general",
     status: task.status || "pending",
     source: task.source || "kethura",
+    severity: ["info", "warning", "critical"].includes(task.severity) ? task.severity : "info",
     priority: Number(task.priority || 3),
     retries: Number(task.retries || 0),
     title: String(task.title || "Kethura task").slice(0, 180),
+    recommendedAction: String(task.recommendedAction || "Review manually before taking action.").slice(0, 500),
+    dedupeKey,
     payload: redactValue(task.payload || {}),
     result: redactValue(task.result || null),
     createdAt: task.createdAt || now,
+    created_at: task.createdAt || now,
     updatedAt: now,
-    lastRunAt: task.lastRunAt || null
+    lastSeenAt: task.lastSeenAt || now,
+    last_seen_at: task.lastSeenAt || now,
+    lastRunAt: task.lastRunAt || null,
+    adminNotes: Array.isArray(task.adminNotes) ? task.adminNotes.map(String).slice(0, 20) : [],
+    history: [
+      {
+        at: now,
+        action: "created",
+        note: String(task.recommendedAction || task.reason || "").slice(0, 500)
+      }
+    ]
   };
   tasks.unshift(record);
   await writeTasks(tasks.slice(0, 1000));
@@ -63,11 +99,24 @@ async function updateTask(id, patch) {
     throw error;
   }
 
+  const history = [
+    ...(tasks[index].history || []),
+    {
+      at: new Date().toISOString(),
+      action: patch.historyAction || "updated",
+      note: String(patch.adminNote || patch.reason || "").slice(0, 500)
+    }
+  ].slice(-50);
+
   tasks[index] = {
     ...tasks[index],
     ...redactValue(patch),
+    history,
     updatedAt: new Date().toISOString()
   };
+  delete tasks[index].historyAction;
+  delete tasks[index].adminNote;
+  delete tasks[index].reason;
   await writeTasks(tasks);
   return tasks[index];
 }
@@ -92,9 +141,12 @@ async function dashboard() {
       status: task.status,
       retries: task.retries,
       source: task.source,
+      severity: task.severity,
       priority: task.priority,
       title: task.title,
+      recommendedAction: task.recommendedAction,
       lastRunAt: task.lastRunAt,
+      lastSeenAt: task.lastSeenAt,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt
     }))
@@ -106,7 +158,9 @@ async function taskAction(id, action) {
     retry: { status: "pending", retriesIncrement: true, lastRunAt: new Date().toISOString() },
     approve: { status: "approved" },
     reject: { status: "rejected" },
-    pause: { status: "paused" }
+    pause: { status: "paused" },
+    resolve: { status: "resolved" },
+    reopen: { status: "pending" }
   };
   const patch = transitions[action];
   if (!patch) {
