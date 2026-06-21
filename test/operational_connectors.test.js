@@ -11,8 +11,9 @@ process.env.SOCIAL_DRAFT_MODE = "true";
 process.env.OPERATIONAL_CONNECTOR_TIMEOUT_MS = "500";
 process.env.OPERATIONAL_CONNECTOR_RETRY_LIMIT = "0";
 process.env.OPERATIONAL_SNAPSHOT_RETENTION_DAYS = "1";
-process.env.OPERATIONAL_CAMPAIGN_SUMMARY_URL = "http://127.0.0.1:9/summary";
-process.env.OPERATIONAL_CAMPAIGN_API_TOKEN = "campaign-token";
+process.env.OPERATIONAL_CAMPAIGN_SUMMARY_PATH = "/api/admin/kethura/campaign-summary";
+process.env.HANDYPAY_API_BASE_URL = "http://127.0.0.1:9";
+process.env.HANDYPAY_API_TOKEN = "campaign-token";
 
 test("connectors stay disabled without credentials", async () => {
   const { getConnectorStatus, refreshOperationalData } = require("../src/services/operationalConnectors");
@@ -36,6 +37,28 @@ test("connector timeout and fetch errors produce safe summaries only", async () 
   assert.equal(summary.severity, "warning");
   assert.match(summary.safeSummary, /connector failed/i);
   assert.doesNotMatch(JSON.stringify(summary), /campaign-token|recipient|@/i);
+});
+
+test("campaign connector uses HandyPay base URL token and path aggregates", () => {
+  const { aggregateCampaigns } = require("../src/services/operationalConnectors");
+  const { redactValue } = require("../src/services/security");
+  const summary = aggregateCampaigns({
+    push_pending: 2,
+    push_sent: 3,
+    push_failed: 1,
+    email_pending: 4,
+    email_sent: 5,
+    email_failed: 6,
+    recipient_email: "client@example.com",
+    message_body: "private body"
+  });
+
+  assert.equal(summary.counts.pending, 6);
+  assert.equal(summary.counts.sent, 8);
+  assert.equal(summary.counts.failed, 7);
+  assert.equal(summary.counts.emailPending, 4);
+  assert.doesNotMatch(JSON.stringify(summary), /client@example.com|private body/);
+  assert.equal(typeof redactValue({ emailPending: 4 }).emailPending, "number");
 });
 
 test("daily brief combines connector aggregates and stores sanitized snapshots only", async () => {

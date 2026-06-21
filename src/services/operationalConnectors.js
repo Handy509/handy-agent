@@ -89,18 +89,26 @@ function aggregateHandyPay(body = {}) {
 
 function aggregateCampaigns(body = {}) {
   const counts = body.counts || body;
-  const failed = safeNumber(counts.failed);
+  const sent = safeNumber(counts.sent ?? counts.push_sent) + safeNumber(counts.email_sent);
+  const failed = safeNumber(counts.failed ?? counts.push_failed) + safeNumber(counts.email_failed);
+  const pending = safeNumber(counts.pending ?? counts.push_pending) + safeNumber(counts.email_pending);
   return sanitizeSummary(
     {
       severity: severityFromCounts({ failed }),
-      safeSummary: `Campaign aggregates: ${safeNumber(counts.sent)} sent, ${failed} failed, ${safeNumber(counts.pending)} pending.`,
+      safeSummary: `Campaign aggregates: ${sent} sent, ${failed} failed, ${pending} pending.`,
       recommendedNextAction: failed ? "Review campaign failures grouped by safe error code." : "No campaign action needed.",
       counts: {
-        sent: safeNumber(counts.sent),
+        sent,
         failed,
-        pending: safeNumber(counts.pending)
+        pending,
+        pushPending: safeNumber(counts.push_pending),
+        pushSent: safeNumber(counts.push_sent),
+        pushFailed: safeNumber(counts.push_failed),
+        emailPending: safeNumber(counts.email_pending),
+        emailSent: safeNumber(counts.email_sent),
+        emailFailed: safeNumber(counts.email_failed)
       },
-      errorCodes: body.errorCodes || body.recentFailuresByCode || {}
+      errorCodes: body.errorCodes || body.recentFailuresByCode || body.recent_safe_error_codes || {}
     },
     "campaigns"
   );
@@ -239,11 +247,11 @@ function connectorDefinitions() {
     },
     campaigns: {
       name: "campaigns",
-      configured: Boolean(config.operationalCampaignSummaryUrl && config.operationalCampaignApiToken),
-      url: config.operationalCampaignSummaryUrl,
-      token: config.operationalCampaignApiToken,
+      configured: Boolean(base && config.handypayApiToken && config.operationalCampaignSummaryPath),
+      url: withBase(config.operationalCampaignSummaryPath),
+      token: config.handypayApiToken,
       aggregate: aggregateCampaigns,
-      authHeader: "Authorization"
+      authHeader: "X-HandyPay-Agent-Token"
     },
     card_providers: {
       name: "card_providers",

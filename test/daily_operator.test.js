@@ -93,6 +93,31 @@ test("operator command endpoint controls tasks and keeps social drafts review-on
   assert.equal(draft.status, 200);
   assert.equal(draftBody.result.payload.mode, "draft_review");
   assert.equal(draftBody.result.payload.public_action_executed, false);
+
+  const tasks = await fetch(`${base}/api/admin/kethura/command`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ command: "get_tasks" })
+  });
+  assert.equal(tasks.status, 200);
+
+  const resolved = await fetch(`${base}/api/admin/kethura/command`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ command: "resolve_task", taskId: task.id })
+  });
+  const resolvedBody = await resolved.json();
+  assert.equal(resolved.status, 200);
+  assert.equal(resolvedBody.result.status, "resolved");
+
+  const reopened = await fetch(`${base}/api/admin/kethura/command`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ command: "reopen_task", taskId: task.id })
+  });
+  const reopenedBody = await reopened.json();
+  assert.equal(reopened.status, 200);
+  assert.equal(reopenedBody.result.status, "pending");
 });
 
 test("sensitive support comments are redirected to private support", () => {
@@ -136,4 +161,30 @@ test("daily brief engine recommends safe review actions without exposing secrets
   assert.equal(redacted.pan, "[redacted]");
   assert.equal(redacted.cvv, "[redacted]");
   assert.equal(redacted.secureWidgetUrl, "[redacted]");
+});
+
+test("autonomous scheduler creates deduped critical alert tasks without unsafe actions", async () => {
+  const { createAlertTasks, runSupportSuggestionJob } = require("../src/services/scheduler");
+  const critical = {
+    source: "card_providers",
+    severity: "critical",
+    safeSummary: "Card/provider aggregates: 1 unavailable provider(s), 12 aggregate error(s).",
+    recommendedNextAction: "Review provider dashboard manually.",
+    counts: { unavailableProviders: 1, aggregateErrors: 12 },
+    errorCodes: { provider_down: 1 },
+    cardNumber: "4111111111111111",
+    cvv: "123"
+  };
+
+  const first = await createAlertTasks([critical]);
+  const second = await createAlertTasks([critical]);
+  const support = await runSupportSuggestionJob();
+
+  assert.equal(first.length, 1);
+  assert.equal(second.length, 1);
+  assert.equal(first[0].id, second[0].id);
+  assert.equal(first[0].severity, "critical");
+  assert.equal(first[0].status, "pending");
+  assert.equal(support.public_action_executed, false);
+  assert.doesNotMatch(JSON.stringify(second[0]), /4111111111111111|123/);
 });

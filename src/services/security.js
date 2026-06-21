@@ -23,11 +23,34 @@ const SENSITIVE_KEYS = [
   "expiry",
   "card_number",
   "cardnumber",
+  "transaction_id",
+  "transactionid",
+  "provider_id",
+  "providerid",
+  "provider_card_id",
+  "providercardid",
+  "raw_payload",
+  "rawpayload",
+  "provider_raw",
+  "providerraw",
+  "message_body",
+  "messagebody",
+  "device_token",
+  "devicetoken",
   "secure_url",
   "secureurl",
   "secure_widget_url",
   "securewidgeturl"
 ];
+
+const SAFE_AGGREGATE_KEYS = new Set([
+  "emailpending",
+  "emailsent",
+  "emailfailed",
+  "email_pending",
+  "email_sent",
+  "email_failed"
+]);
 
 function redactValue(value) {
   if (Array.isArray(value)) return value.map(redactValue);
@@ -36,6 +59,9 @@ function redactValue(value) {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => {
       const lower = key.toLowerCase();
+      if (SAFE_AGGREGATE_KEYS.has(lower) && (typeof item === "number" || /^[0-9]+$/.test(String(item)))) {
+        return [key, Number(item)];
+      }
       if (SENSITIVE_KEYS.some((sensitive) => lower.includes(sensitive))) {
         return [key, "[redacted]"];
       }

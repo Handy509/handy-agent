@@ -170,6 +170,12 @@ async function dailyBrief() {
 
   const newTasks = taskSummary(tasks, (task) => task.status === "pending", 10);
   const failedTasks = taskSummary(tasks, (task) => task.status === "failed", 10);
+  const criticalTasks = taskSummary(tasks, (task) => task.severity === "critical" && task.status !== "resolved", 10);
+  const automaticActivity = taskSummary(
+    tasks,
+    (task) => String(task.source || "").includes("kethura_autonomous") || String(task.source || "").includes("scheduler"),
+    12
+  );
   const socialDrafts = taskSummary(tasks, (task) => task.type === "social_daily_post" && task.status !== "completed", 8);
   const supportRisks = customerSupportRisks(tasks);
   const marketing = marketingOpportunities(memory, tasks);
@@ -214,10 +220,13 @@ async function dailyBrief() {
     operationalSignals: operational,
     newTasks,
     failedTasks,
+    criticalTasks,
     memoryChanges: latestMemoryChanges(memory),
     socialDraftSuggestions: socialDrafts,
+    socialDraftsWaitingForReview: socialDrafts,
     customerSupportRisks: supportRisks,
     marketingOpportunities: marketing,
+    automaticActivitySinceLastBrief: automaticActivity,
     recommendedActions: recommendedActions({
       health,
       taskDashboard,
