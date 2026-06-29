@@ -324,7 +324,7 @@ async function processUnreadEmails() {
     nextAttemptAt = Date.now() + retryDelayMs;
     lastFailure = {
       code: error?.code || error?.name || "EMAIL_POLL_FAILED",
-      message: error?.message || "Email polling failed",
+      message: "Email polling failed; retry is scheduled.",
       at: new Date().toISOString()
     };
 
@@ -339,7 +339,6 @@ async function processUnreadEmails() {
       logger.warn(
         {
           errorCode: error?.code || error?.name || "EMAIL_POLL_FAILED",
-          message: error?.message || "Email polling failed",
           consecutiveFailures,
           nextAttemptAt: new Date(nextAttemptAt).toISOString()
         },

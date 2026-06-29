@@ -17,8 +17,8 @@ async function sendTelegramAlert(text) {
   });
 
   if (!response.ok) {
-    const body = await response.text();
-    logger.warn({ status: response.status, body }, "Telegram alert failed");
+    await response.text();
+    logger.warn({ status: response.status }, "Telegram alert failed");
   }
 
   return { ok: response.ok };

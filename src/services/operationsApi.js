@@ -34,7 +34,7 @@ async function submit(path, payload) {
 
   if (!response.ok) {
     logger.warn(
-      { path, status: response.status, message: body.message || "Request failed" },
+      { path, status: response.status },
       "HandyPay operations API request failed"
     );
   }
