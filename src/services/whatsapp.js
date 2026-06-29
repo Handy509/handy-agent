@@ -26,7 +26,13 @@ function extractWhatsAppMessages(payload) {
 
 async function sendWhatsAppText(to, body) {
   if (!config.whatsappAccessToken) {
-    logger.info({ to, body }, "WhatsApp token missing; reply logged only");
+    logger.info(
+      {
+        recipientPresent: Boolean(to),
+        messageLength: String(body || "").length
+      },
+      "WhatsApp token missing; outbound reply skipped"
+    );
     return { skipped: true };
   }
 
@@ -49,8 +55,8 @@ async function sendWhatsAppText(to, body) {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    logger.warn({ status: response.status, body: text }, "WhatsApp send failed");
+    await response.text();
+    logger.warn({ status: response.status }, "WhatsApp send failed");
   }
 
   return { ok: response.ok };

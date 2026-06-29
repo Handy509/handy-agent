@@ -79,3 +79,14 @@ test("request logger redacts webhook signature and auth headers", async () => {
   assert.doesNotMatch(output, /private-token|session=private|raw-facebook-signature|raw-provider-signature|raw-whatsapp-signature/);
   assert.match(output, /\[redacted\]/);
 });
+
+test("outbound connector logs do not include recipient, message, or raw provider bodies", () => {
+  const whatsapp = fs.readFileSync(path.join(root, "src/services/whatsapp.js"), "utf8");
+  const telegram = fs.readFileSync(path.join(root, "src/services/telegram.js"), "utf8");
+  const operations = fs.readFileSync(path.join(root, "src/services/operationsApi.js"), "utf8");
+
+  assert.doesNotMatch(whatsapp, /logger\.(?:info|warn)\(\{\s*to\s*,\s*body\s*\}/s);
+  assert.doesNotMatch(whatsapp, /logger\.warn\(\{[^}]*body:/s);
+  assert.doesNotMatch(telegram, /logger\.warn\(\{[^}]*body/s);
+  assert.doesNotMatch(operations, /logger\.warn\(\{[^}]*message:/s);
+});
