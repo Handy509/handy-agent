@@ -2,6 +2,7 @@ const { healthReport } = require("./monitoring");
 const { loadMemory } = require("./memory");
 const { dashboard, readTasks } = require("./tasks");
 const { latestOperationalSnapshot } = require("./operationalConnectors");
+const { dailyCustomerBehavior } = require("./customerBehavior");
 
 function latestMemoryChanges(memory, limit = 8) {
   return Object.entries(memory.categories || {})
@@ -73,7 +74,7 @@ function operationalSection(summaries, source) {
   return summaries.filter((summary) => summary.source === source);
 }
 
-function recommendedActions({ health, taskDashboard, tasks, socialDrafts, supportRisks, operationalSummaries = [] }) {
+function recommendedActions({ health, taskDashboard, tasks, socialDrafts, supportRisks, operationalSummaries = [], customerBehavior }) {
   const actions = [];
   const severeOperationalItems = operationalSummaries.filter((item) => ["critical", "warning"].includes(item.severity));
 
@@ -147,6 +148,16 @@ function recommendedActions({ health, taskDashboard, tasks, socialDrafts, suppor
     });
   }
 
+  for (const recommendation of customerBehavior?.recommendations || []) {
+    actions.push({
+      priority: 3,
+      type: "customer_behavior",
+      title: "Adapt HandyPay from aggregate customer behavior",
+      reason: recommendation,
+      safeExecution: "manual_review_only"
+    });
+  }
+
   actions.push({
     priority: 5,
     type: "safety",
@@ -165,7 +176,10 @@ async function dailyBrief() {
     loadMemory(),
     readTasks()
   ]);
-  const operational = await latestOperationalSnapshot();
+  const [operational, customerBehavior] = await Promise.all([
+    latestOperationalSnapshot(),
+    dailyCustomerBehavior(24)
+  ]);
   const operationalSummaries = operational.summaries || [];
 
   const newTasks = taskSummary(tasks, (task) => task.status === "pending", 10);
@@ -218,6 +232,7 @@ async function dailyBrief() {
       safeSummary: `Support-risk aggregate from backend: ${item.counts?.supportRisks || 0} item(s).`
     })),
     operationalSignals: operational,
+    customerBehavior,
     newTasks,
     failedTasks,
     criticalTasks,
@@ -233,7 +248,8 @@ async function dailyBrief() {
       tasks,
       socialDrafts,
       supportRisks,
-      operationalSummaries
+      operationalSummaries,
+      customerBehavior
     }),
     safetyRules: [
       "Never expose customer balance, card data, KYC, transaction details, PAN, CVV, or secure URLs publicly.",
