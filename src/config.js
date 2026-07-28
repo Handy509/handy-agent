@@ -57,6 +57,7 @@ const config = {
   autonomousAlertMinutes: Number(process.env.KETHURA_AUTONOMOUS_ALERT_MINUTES || 15),
   autonomousDailyBriefHour: Number(process.env.KETHURA_DAILY_BRIEF_HOUR || 9),
   autonomousSocialDraftHour: Number(process.env.KETHURA_SOCIAL_DRAFT_HOUR || 14),
+  autonomousCreativeBriefHour: Number(process.env.KETHURA_CREATIVE_BRIEF_HOUR || 16),
   growthAgentEnabled: process.env.GROWTH_AGENT_ENABLED === "true",
   growthAgentRunHourUtc: Number(process.env.GROWTH_AGENT_RUN_HOUR_UTC || 10),
   growthAgentCheckMinutes: Number(process.env.GROWTH_AGENT_CHECK_MINUTES || 30),

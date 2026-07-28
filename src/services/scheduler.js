@@ -6,11 +6,13 @@ const { refreshOperationalData } = require("./operationalConnectors");
 const { createDailyPostDraft } = require("./socialAutomation");
 const { automationState, createTask } = require("./tasks");
 const { sendTelegramAlert } = require("./telegram");
+const { createDailyCreativeBrief } = require("./creativeStudio");
 
 let started = false;
 let timers = [];
 let lastDailyBriefDate = "";
 let lastSocialDraftDate = "";
+let lastCreativeBriefDate = "";
 
 function todayKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
@@ -137,6 +139,29 @@ async function runSocialDraftJob(date = new Date()) {
   };
 }
 
+async function runCreativeBriefJob(date = new Date()) {
+  const key = todayKey(date);
+  if (lastCreativeBriefDate === key) return { skipped: true, reason: "already_generated_today" };
+  lastCreativeBriefDate = key;
+  const creative = await createDailyCreativeBrief(date);
+  if (config.telegramBotToken && config.telegramAdminChatId) {
+    await sendTelegramAlert([
+      "Kéthura Creative Brief",
+      `Task: ${creative.task.id}`,
+      `Markets: ${creative.packages.map((item) => item.market).join(", ")}`,
+      `Campaigns ready: ${creative.packages.length}`,
+      "Poster prompts, social copy and Remotion specs are ready.",
+      "Nothing will be published without your approval."
+    ].join("\n"));
+  }
+  return {
+    skipped: false,
+    taskId: creative.task.id,
+    markets: creative.packages.map((item) => item.market),
+    public_action_executed: false
+  };
+}
+
 async function runSupportSuggestionJob() {
   return {
     skipped: false,
@@ -163,6 +188,7 @@ function startAutonomousScheduler() {
     const hour = new Date().getUTCHours();
     if (hour === config.autonomousDailyBriefHour) await runDailyBriefJob();
     if (hour === config.autonomousSocialDraftHour) await runSocialDraftJob();
+    if (hour === config.autonomousCreativeBriefHour) await runCreativeBriefJob();
   }, 60, "daily_jobs");
   logger.info(
     {
@@ -186,6 +212,7 @@ module.exports = {
   createAlertTasks,
   runAutonomousCycle,
   runDailyBriefJob,
+  runCreativeBriefJob,
   runSocialDraftJob,
   runSupportSuggestionJob,
   startAutonomousScheduler,
