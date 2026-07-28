@@ -8,15 +8,15 @@ const STATE_FILE = "growth-agent-state.json";
 let timer = null;
 let running = false;
 
-function dailyWorldCupDraft(date) {
+function dailyHandyPayDraft(date) {
   return {
     platform: "x",
-    objective: "World Cup 2026 engagement and HandyPay activation",
+    objective: "HandyPay Digital adoption and customer education",
     audience: "HandyPay users and international payment customers",
     language: "ht",
     content:
-      "Mondyal 2026 la la. Fè prediksyon ou nan HandyPay, suiv pwen ou, epi pare kat ou pou peman entènasyonal. Louvri app HandyPay la pou patisipe.",
-    cta: "Open HandyPay and make your prediction",
+      "HandyPay ap vin pi fasil sou mobil ak PC. Jere kont, kat ak tranzaksyon ou nan yon sèl eksperyans. Vèsyon Windows la toujou anba sètifikasyon Microsoft.",
+    cta: "Open HandyPay and explore your services",
     scheduled_at: `${date}T15:00:00Z`
   };
 }
@@ -36,17 +36,17 @@ async function runDailyGrowthCycle(force = false) {
 
     const post = config.socialDailyPostEnabled
       ? await createDailyPostDraft(now)
-      : await createSocialPost(dailyWorldCupDraft(date));
+      : await createSocialPost(dailyHandyPayDraft(date));
     const opportunity = await createOpportunity({
-      title: "Use World Cup predictions to recover KYC-to-card drop-off",
+      title: "Prepare customers for the HandyPay Digital Windows launch",
       description:
-        "Invite verified users without an activated card to earn campaign tickets after card activation.",
+        "Educate verified users about the desktop experience while Microsoft certification is pending.",
       category: "growth",
       priority: 2,
       confidence: 78,
-      expected_impact: "Higher card activation and daily app engagement",
+      expected_impact: "Higher product awareness, card activation and desktop adoption",
       source: "kethura_daily_cycle",
-      metadata: { campaign: "world_cup_2026", public_action_executed: false }
+      metadata: { campaign: "windows_store_launch", public_action_executed: false }
     });
 
     await writeJson(STATE_FILE, {

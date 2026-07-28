@@ -6,6 +6,7 @@ const { getSession, setSession } = require("../services/sessionMemory");
 const { appendJsonLine } = require("../services/storage");
 const { createTicket, shouldEscalate } = require("../services/tickets");
 const { extractWhatsAppMessages, sendWhatsAppText } = require("../services/whatsapp");
+const { analyzeResponse } = require("../services/responseQuality");
 
 const whatsappRouter = express.Router();
 
@@ -171,6 +172,10 @@ whatsappRouter.post("/", async (req, res, next) => {
         channel: "whatsapp",
         customerPhone: message.from,
         text: finalReply,
+        quality: analyzeResponse({
+          customerMessage: message.text,
+          reply: finalReply
+        }),
         createdAt: new Date().toISOString()
       });
     }

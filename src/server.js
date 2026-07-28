@@ -19,6 +19,7 @@ const { dailyBrief } = require("./services/dailyBrief");
 const { runOperatorCommand } = require("./services/operatorCommands");
 const { getConnectorStatus, refreshOperationalData } = require("./services/operationalConnectors");
 const { startAutonomousScheduler } = require("./services/scheduler");
+const { analyzeResponse } = require("./services/responseQuality");
 
 const app = express();
 const WEB_CHAT_FILE = "web-chat-sessions.json";
@@ -492,9 +493,17 @@ app.post("/api/chat", async (req, res, next) => {
       reply = "Mwen la pou ede w ak HandyPay.\nOu ka poze m kesyon sou kat, rechargement, kont, KYC, oswa peman online.";
     }
 
+    const responseId = makeSessionId().replace("web_", "reply_");
+    const quality = analyzeResponse({
+      customerMessage: userMessage.text,
+      reply,
+      intent: intent.name
+    });
     const assistantMessage = {
+      id: responseId,
       role: "assistant",
       text: clipText(reply, 2000),
+      quality,
       createdAt: new Date().toISOString()
     };
 
@@ -510,6 +519,8 @@ app.post("/api/chat", async (req, res, next) => {
       locale,
       message: userMessage.text,
       reply: assistantMessage.text,
+      responseId,
+      quality,
       createdAt: new Date().toISOString()
     });
 
@@ -538,9 +549,37 @@ app.post("/api/chat", async (req, res, next) => {
     return res.json({
       ok: true,
       sessionId,
+      responseId,
       reply: assistantMessage.text,
       humanAvailable: false
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/chat/:sessionId/feedback", async (req, res, next) => {
+  try {
+    const sessionId = String(req.params.sessionId || "").trim();
+    const responseId = String(req.body.responseId || "").trim();
+    const rating = String(req.body.rating || "").trim();
+    const reason = clipText(req.body.reason || "", 120);
+    if (!responseId || !["helpful", "not_helpful"].includes(rating)) {
+      return res.status(422).json({ ok: false, error: "Valid responseId and rating are required" });
+    }
+    const sessions = await readWebChatSessions();
+    const session = sessions[sessionId];
+    const exists = session?.messages?.some((message) => message.id === responseId && message.role === "assistant");
+    if (!exists) return res.status(404).json({ ok: false, error: "Response not found" });
+
+    await appendJsonLine("response-feedback.jsonl", {
+      sessionId,
+      responseId,
+      rating,
+      reason,
+      createdAt: new Date().toISOString()
+    });
+    return res.status(201).json({ ok: true });
   } catch (error) {
     next(error);
   }

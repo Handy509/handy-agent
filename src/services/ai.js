@@ -51,6 +51,18 @@ function controlledReply(messageText, agentName) {
     return "Mwen se Kethura AI, asistans otomatik HandyPay la.\nMwen la pou ede w ak kat, rechargement, kont, ak support.";
   }
 
+  if (["world cup", "mondyal", "openclaw", "remote config"].some((word) => normalized.includes(word))) {
+    return "Fonksyon sa a pa disponib ankò; HandyPay retire l sou sit la ak app la.\nMwen ka ede w ak sèvis HandyPay ki aktif yo.";
+  }
+
+  if (["windows", "microsoft store", "app pc", "apk pc", "exe pc"].some((word) => normalized.includes(word))) {
+    return "HandyPay Digital pou Windows deja soumèt bay Microsoft epi li anba sètifikasyon.\nN ap anonse lyen Microsoft Store la lè li pibliye.";
+  }
+
+  if (["490000", "2000000", "31000000", "decimal scale", "denomination", "raw amount"].some((word) => normalized.includes(word))) {
+    return "Sou endpoint *getcard*, balance ak transaction amount yo deja an USD; pa divize yo selon gwosè montan an.\nPou lòt endpoint/webhook, nou dwe verifye kontra egzak la avan nenpòt konvèsyon.";
+  }
+
   if (["balans", "balance", "solde", "kob mwen", "kob mw", "konbyen lajan"].some((word) => normalized.includes(word))) {
     return { type: "balance" };
   }

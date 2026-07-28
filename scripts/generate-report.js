@@ -109,10 +109,26 @@ function buildRecommendations({ counts, unresolvedLeads, verificationIssues, pro
 async function generateReport() {
   const since = sinceDate(HOURS);
   const conversations = (await readJsonLines("conversations.jsonl")).filter((item) => inWindow(item, since));
+  const webConversations = (await readJsonLines("web-conversations.jsonl")).filter((item) => inWindow(item, since));
+  const feedback = (await readJsonLines("response-feedback.jsonl")).filter((item) => inWindow(item, since));
   const tickets = (await readJsonLines("tickets.jsonl")).filter((item) => inWindow(item, since));
   const inbound = conversations.filter((item) => item.direction === "inbound");
   const outbound = conversations.filter((item) => item.direction === "outbound");
   const uniqueCustomers = [...new Set(inbound.map((item) => item.customerPhone).filter(Boolean))];
+  const qualityEntries = [
+    ...outbound.map((item) => item.quality),
+    ...webConversations.map((item) => item.quality)
+  ].filter((item) => item && Number.isFinite(Number(item.score)));
+  const averageQuality = qualityEntries.length
+    ? Math.round(qualityEntries.reduce((sum, item) => sum + Number(item.score), 0) / qualityEntries.length)
+    : null;
+  const qualityFlags = {};
+  for (const item of qualityEntries) {
+    for (const flag of item.flags || []) qualityFlags[flag] = (qualityFlags[flag] || 0) + 1;
+  }
+  const flaggedResponses = qualityEntries.filter((item) => item.needsReview).length;
+  const helpful = feedback.filter((item) => item.rating === "helpful").length;
+  const notHelpful = feedback.filter((item) => item.rating === "not_helpful").length;
 
   const counts = {};
   const leadPhones = new Set();
@@ -150,6 +166,10 @@ async function generateReport() {
     `- Repons bot: ${outbound.length}`,
     `- Kliyan inik: ${uniqueCustomers.length}`,
     `- Tickets/eskalasyon: ${tickets.length}`,
+    `- Nòt kalite mwayèn: ${averageQuality === null ? "pa gen done" : `${averageQuality}/100`}`,
+    `- Repons pou revize: ${flaggedResponses}`,
+    `- Feedback itil/pa itil: ${helpful}/${notHelpful}`,
+    `- Drapo kalite: ${Object.entries(qualityFlags).sort((a, b) => b[1] - a[1]).map(([flag, count]) => `${flag}=${count}`).join(", ") || "okenn"}`,
     "",
     "Sijè ki parèt plis",
     `- Kat/activation: ${counts.card || 0}`,
