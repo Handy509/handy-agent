@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("node:crypto");
 const { config } = require("../config");
 const { generateReply } = require("../services/ai");
 const { handleAdminCommand, isAdminPhone } = require("../services/adminCommands");
@@ -9,6 +10,20 @@ const { extractWhatsAppMessages, sendWhatsAppText } = require("../services/whats
 const { analyzeResponse } = require("../services/responseQuality");
 
 const whatsappRouter = express.Router();
+
+function verifyWhatsAppSignature(req) {
+  if (!config.whatsappAppSecret) return !config.whatsappRequireSignature;
+
+  const supplied = String(req.headers["x-hub-signature-256"] || "");
+  const expected = `sha256=${crypto
+    .createHmac("sha256", config.whatsappAppSecret)
+    .update(String(req.rawBody || ""), "utf8")
+    .digest("hex")}`;
+  const suppliedBuffer = Buffer.from(supplied);
+  const expectedBuffer = Buffer.from(expected);
+  return suppliedBuffer.length === expectedBuffer.length
+    && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer);
+}
 
 function splitReply(text) {
   const value = String(text || "").trim();
@@ -76,6 +91,9 @@ whatsappRouter.get("/", (req, res) => {
 
 whatsappRouter.post("/", async (req, res, next) => {
   try {
+    if (!verifyWhatsAppSignature(req)) {
+      return res.status(401).json({ ok: false, error: "Invalid webhook signature" });
+    }
     const messages = extractWhatsAppMessages(req.body);
 
     res.sendStatus(200);
@@ -184,4 +202,4 @@ whatsappRouter.post("/", async (req, res, next) => {
   }
 });
 
-module.exports = { whatsappRouter };
+module.exports = { verifyWhatsAppSignature, whatsappRouter };

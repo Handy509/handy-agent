@@ -9,6 +9,7 @@ const REDACT_PATHS = [
       "req.headers.x-hub-signature-256",
       "req.headers.x-signature",
       "req.headers.x-whatsapp-signature",
+      "req.headers.x-kethura-signature",
       "whatsappAccessToken",
       "openaiApiKey",
       "anthropicApiKey",
@@ -30,6 +31,7 @@ const REDACT_PATHS = [
       "*.x-hub-signature-256",
       "*.x-signature",
       "*.x-whatsapp-signature",
+      "*.x-kethura-signature",
       "*.cookie",
       "*.set-cookie"
 ];

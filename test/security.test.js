@@ -71,12 +71,13 @@ test("request logger redacts webhook signature and auth headers", async () => {
         "x-hub-signature-256": "sha256=raw-facebook-signature",
         "x-signature": "raw-provider-signature",
         "x-whatsapp-signature": "raw-whatsapp-signature"
+        ,"x-kethura-signature": "raw-kethura-signature"
       }
     }
   }, "request completed");
 
   const output = chunks.join("");
-  assert.doesNotMatch(output, /private-token|session=private|raw-facebook-signature|raw-provider-signature|raw-whatsapp-signature/);
+  assert.doesNotMatch(output, /private-token|session=private|raw-facebook-signature|raw-provider-signature|raw-whatsapp-signature|raw-kethura-signature/);
   assert.match(output, /\[redacted\]/);
 });
 

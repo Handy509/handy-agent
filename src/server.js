@@ -21,6 +21,12 @@ const { getConnectorStatus, refreshOperationalData } = require("./services/opera
 const { startAutonomousScheduler } = require("./services/scheduler");
 const { analyzeResponse } = require("./services/responseQuality");
 const {
+  hashToken,
+  makeOpaqueToken,
+  rateLimit,
+  verifySessionToken
+} = require("./services/publicSecurity");
+const {
   acceptInternalEvent,
   senderConfigured,
   startInternalEventRetries,
@@ -40,7 +46,7 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
   }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Kethura-Admin-Token, X-Kethura-Timestamp, X-Kethura-Signature");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Kethura-Admin-Token, X-Kethura-Session-Token, X-Kethura-Timestamp, X-Kethura-Signature");
   res.setHeader("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
@@ -225,6 +231,7 @@ app.get("/widget.js", (_req, res) => {
 
   var API = "https://kethura.com/handypay-agent/api/chat";
   var SESSION_KEY = "kethura_web_chat_session";
+  var SESSION_TOKEN_KEY = "kethura_web_chat_session_token";
   var VISITOR_KEY = "kethura_web_chat_visitor";
   var WHATSAPP_URL = window.KETHURA_WHATSAPP_URL || "https://wa.me/50935665273";
   var TELEGRAM_URL = window.KETHURA_TELEGRAM_URL || "https://t.me/handypayhaiti";
@@ -244,6 +251,10 @@ app.get("/widget.js", (_req, res) => {
     } catch (e) {
       return id(prefix);
     }
+  }
+
+  function readStored(key) {
+    try { return localStorage.getItem(key) || ""; } catch (e) { return ""; }
   }
 
   function ensureStyles() {
@@ -386,23 +397,42 @@ app.get("/widget.js", (_req, res) => {
     var typing = "Kethura ap ekri...";
     addMessage(typing, "bot");
     try {
+      var requestBody = {
+        sessionId: readStored(SESSION_KEY),
+        visitorId: getStored(VISITOR_KEY, "visitor"),
+        message: text,
+        pageUrl: location.href,
+        locale: document.documentElement.lang || navigator.language || ""
+      };
       var response = await fetch(API, {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          sessionId: getStored(SESSION_KEY, "web"),
-          visitorId: getStored(VISITOR_KEY, "visitor"),
-          message: text,
-          pageUrl: location.href,
-          locale: document.documentElement.lang || navigator.language || ""
-        })
+        headers: {
+          "content-type": "application/json",
+          "x-kethura-session-token": readStored(SESSION_TOKEN_KEY)
+        },
+        body: JSON.stringify(requestBody)
       });
+      if (response.status === 401 && requestBody.sessionId) {
+        try {
+          localStorage.removeItem(SESSION_KEY);
+          localStorage.removeItem(SESSION_TOKEN_KEY);
+        } catch (e) {}
+        requestBody.sessionId = "";
+        response = await fetch(API, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(requestBody)
+        });
+      }
       var data = await response.json();
       var messages = document.querySelectorAll("#kethura-chat-panel .kc-msg");
       if (messages.length) messages[messages.length - 1].remove();
       addMessage(data.reply || "Mwen resevwa mesaj ou a. Ekip la ap verifye.", "bot");
       if (data.sessionId) {
         try { localStorage.setItem(SESSION_KEY, data.sessionId); } catch (e) {}
+      }
+      if (data.sessionToken) {
+        try { localStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken); } catch (e) {}
       }
     } catch (e) {
       var items = document.querySelectorAll("#kethura-chat-panel .kc-msg");
@@ -436,7 +466,7 @@ app.get("/widget.js", (_req, res) => {
 });
 
 function makeSessionId() {
-  return `web_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return `web_${require("node:crypto").randomUUID()}`;
 }
 
 function clipText(text, max = 900) {
@@ -489,13 +519,27 @@ async function saveWebChatSession(sessionId, updater) {
   return sessions[sessionId];
 }
 
-app.post("/api/chat", async (req, res, next) => {
+const chatRateLimit = rateLimit({ namespace: "chat", limit: 30, windowMs: 60_000 });
+const ticketRateLimit = rateLimit({ namespace: "tickets", limit: 5, windowMs: 60_000 });
+const feedbackRateLimit = rateLimit({ namespace: "feedback", limit: 20, windowMs: 60_000 });
+
+app.post("/api/chat", chatRateLimit, async (req, res, next) => {
   try {
     const message = String(req.body.message || "").trim();
     const pageUrl = String(req.body.pageUrl || "");
     const locale = String(req.body.locale || "");
-    const sessionId = String(req.body.sessionId || "").trim() || makeSessionId();
-    const visitorId = String(req.body.visitorId || sessionId);
+    const requestedSessionId = String(req.body.sessionId || "").trim();
+    const suppliedToken = String(
+      req.headers["x-kethura-session-token"] || req.body.sessionToken || ""
+    );
+    const sessions = await readWebChatSessions();
+    const existingSession = requestedSessionId ? sessions[requestedSessionId] : null;
+    if (requestedSessionId && (!existingSession || !verifySessionToken(existingSession, suppliedToken))) {
+      return res.status(401).json({ ok: false, error: "Invalid chat session" });
+    }
+    const sessionId = existingSession ? requestedSessionId : makeSessionId();
+    const sessionToken = existingSession ? suppliedToken : makeOpaqueToken();
+    const visitorId = String(req.body.visitorId || sessionId).slice(0, 160);
     const intent = classifySupportIntent(message);
 
     if (!message) {
@@ -514,6 +558,7 @@ app.post("/api/chat", async (req, res, next) => {
 
     await saveWebChatSession(sessionId, (session) => ({
       ...session,
+      tokenHash: session.tokenHash || hashToken(sessionToken),
       visitorId,
       pageUrl: pageUrl || session.pageUrl || "",
       locale: locale || session.locale || "",
@@ -587,6 +632,7 @@ app.post("/api/chat", async (req, res, next) => {
     return res.json({
       ok: true,
       sessionId,
+      sessionToken,
       responseId,
       reply: assistantMessage.text,
       humanAvailable: false
@@ -596,7 +642,7 @@ app.post("/api/chat", async (req, res, next) => {
   }
 });
 
-app.post("/api/chat/:sessionId/feedback", async (req, res, next) => {
+app.post("/api/chat/:sessionId/feedback", feedbackRateLimit, async (req, res, next) => {
   try {
     const sessionId = String(req.params.sessionId || "").trim();
     const responseId = String(req.body.responseId || "").trim();
@@ -607,6 +653,12 @@ app.post("/api/chat/:sessionId/feedback", async (req, res, next) => {
     }
     const sessions = await readWebChatSessions();
     const session = sessions[sessionId];
+    const suppliedToken = String(
+      req.headers["x-kethura-session-token"] || req.body.sessionToken || ""
+    );
+    if (!verifySessionToken(session, suppliedToken)) {
+      return res.status(401).json({ ok: false, error: "Invalid chat session" });
+    }
     const exists = session?.messages?.some((message) => message.id === responseId && message.role === "assistant");
     if (!exists) return res.status(404).json({ ok: false, error: "Response not found" });
 
@@ -623,7 +675,7 @@ app.post("/api/chat/:sessionId/feedback", async (req, res, next) => {
   }
 });
 
-app.get("/api/chat/:sessionId/messages", async (req, res, next) => {
+app.get("/api/chat/:sessionId/messages", requireAdmin, async (req, res, next) => {
   try {
     const sessions = await readWebChatSessions();
     const session = sessions[String(req.params.sessionId)] || null;
@@ -631,7 +683,6 @@ app.get("/api/chat/:sessionId/messages", async (req, res, next) => {
     if (!session) {
       return res.status(404).json({ ok: false, error: "Session not found" });
     }
-
     return res.json({
       ok: true,
       sessionId: session.id,
@@ -642,15 +693,22 @@ app.get("/api/chat/:sessionId/messages", async (req, res, next) => {
   }
 });
 
-app.post("/api/tickets", async (req, res, next) => {
+app.post("/api/tickets", ticketRateLimit, async (req, res, next) => {
   try {
+    const subject = clipText(req.body.subject || "Manual ticket", 160);
+    const message = clipText(req.body.message || "", 4000);
+    if (!message) {
+      return res.status(422).json({ ok: false, error: "Message is required" });
+    }
     const ticket = await createTicket({
-      source: req.body.source || "api",
-      customerPhone: req.body.customerPhone || "",
-      subject: req.body.subject || "Manual ticket",
-      message: req.body.message || "",
-      priority: req.body.priority || "normal",
-      metadata: req.body.metadata || {}
+      source: clipText(req.body.source || "api", 40),
+      customerPhone: clipText(req.body.customerPhone || "", 40),
+      subject,
+      message,
+      priority: ["normal", "high", "urgent"].includes(req.body.priority)
+        ? req.body.priority
+        : "normal",
+      metadata: {}
     });
 
     res.status(201).json({ ok: true, ticket });

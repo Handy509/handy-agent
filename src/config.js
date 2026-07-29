@@ -15,6 +15,9 @@ const config = {
   anthropicModel: process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest",
 
   whatsappVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "",
+  whatsappAppSecret: process.env.WHATSAPP_APP_SECRET || "",
+  whatsappRequireSignature:
+    process.env.WHATSAPP_REQUIRE_SIGNATURE === "true",
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
   whatsappGraphVersion: process.env.WHATSAPP_GRAPH_VERSION || "v20.0",
