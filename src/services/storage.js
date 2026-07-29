@@ -1,5 +1,6 @@
 const fs = require("fs/promises");
 const path = require("path");
+const { randomUUID } = require("crypto");
 const { config } = require("../config");
 
 async function ensureDataDir() {
@@ -27,7 +28,15 @@ async function readJson(fileName, fallback) {
 async function writeJson(fileName, payload) {
   await ensureDataDir();
   const filePath = path.join(config.dataDir, fileName);
-  await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+
+  try {
+    await fs.writeFile(temporaryPath, JSON.stringify(payload, null, 2), "utf8");
+    await fs.rename(temporaryPath, filePath);
+  } catch (error) {
+    await fs.rm(temporaryPath, { force: true }).catch(() => {});
+    throw error;
+  }
 }
 
 module.exports = { appendJsonLine, readJson, writeJson };

@@ -18,6 +18,35 @@ const config = {
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
   whatsappGraphVersion: process.env.WHATSAPP_GRAPH_VERSION || "v20.0",
+  whatsappTestTemplateName: process.env.WHATSAPP_TEST_TEMPLATE_NAME || "",
+  whatsappTestTemplateLanguage:
+    process.env.WHATSAPP_TEST_TEMPLATE_LANGUAGE || "en_US",
+  whatsappFallbackTestTemplateName:
+    process.env.WHATSAPP_FALLBACK_TEST_TEMPLATE_NAME || "hello_world",
+  whatsappFallbackTestTemplateLanguage:
+    process.env.WHATSAPP_FALLBACK_TEST_TEMPLATE_LANGUAGE || "en_US",
+  whatsappRequestTemplateName:
+    process.env.WHATSAPP_REQUEST_TEMPLATE_NAME || "",
+  whatsappRequestTemplateLanguage:
+    process.env.WHATSAPP_REQUEST_TEMPLATE_LANGUAGE || "fr",
+
+  internalEventSecret: process.env.KETHURA_INTERNAL_EVENT_SECRET || "",
+  internalAllowedIps: (process.env.KETHURA_INTERNAL_ALLOWED_IPS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean),
+  internalMaxTimestampSkewSeconds: Number(
+    process.env.KETHURA_INTERNAL_MAX_TIMESTAMP_SKEW_SECONDS || 300
+  ),
+  internalRateLimitPerMinute: Number(
+    process.env.KETHURA_INTERNAL_RATE_LIMIT_PER_MINUTE || 60
+  ),
+  internalRetryMaxAttempts: Number(
+    process.env.KETHURA_INTERNAL_RETRY_MAX_ATTEMPTS || 5
+  ),
+  internalRetryBaseSeconds: Number(
+    process.env.KETHURA_INTERNAL_RETRY_BASE_SECONDS || 30
+  ),
 
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   telegramAdminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID || "",

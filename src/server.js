@@ -20,6 +20,13 @@ const { runOperatorCommand } = require("./services/operatorCommands");
 const { getConnectorStatus, refreshOperationalData } = require("./services/operationalConnectors");
 const { startAutonomousScheduler } = require("./services/scheduler");
 const { analyzeResponse } = require("./services/responseQuality");
+const {
+  acceptInternalEvent,
+  senderConfigured,
+  startInternalEventRetries,
+  templateStatus,
+  verifyInternalRequest
+} = require("./services/internalEvents");
 
 const app = express();
 const WEB_CHAT_FILE = "web-chat-sessions.json";
@@ -33,7 +40,7 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
   }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Kethura-Admin-Token");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Kethura-Admin-Token, X-Kethura-Timestamp, X-Kethura-Signature");
   res.setHeader("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
@@ -43,7 +50,14 @@ app.use((req, res, next) => {
   return next();
 });
 
-app.use(express.json({ limit: "2mb" }));
+app.use(
+  express.json({
+    limit: "2mb",
+    verify: (req, _res, buffer) => {
+      req.rawBody = buffer.toString("utf8");
+    }
+  })
+);
 app.use(pinoHttp({ logger }));
 
 app.get("/", (_req, res) => {
@@ -60,6 +74,30 @@ app.get("/health", (_req, res) => {
     service: "handypay-ai-agent",
     env: config.nodeEnv,
     time: new Date().toISOString()
+  });
+});
+
+app.post("/api/internal/events", async (req, res, next) => {
+  try {
+    const verification = verifyInternalRequest(req);
+    if (!verification.ok) {
+      return res
+        .status(verification.status)
+        .json({ ok: false, error: verification.error });
+    }
+    const result = await acceptInternalEvent(req.body || {});
+    return res.status(result.statusCode).json(result.body);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get("/api/admin/kethura/internal-events/status", requireAdmin, (_req, res) => {
+  res.json({
+    ok: true,
+    senderConfigured: senderConfigured(),
+    signatureConfigured: Boolean(config.internalEventSecret),
+    templates: templateStatus()
   });
 });
 
@@ -640,6 +678,7 @@ function startServer() {
     startEmailSupportMonitor();
     startGrowthAgent();
     startAutonomousScheduler();
+    startInternalEventRetries();
   });
 }
 
