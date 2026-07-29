@@ -157,8 +157,47 @@ function controlledReply(messageText, agentName) {
 
   return null;
 }
+
+function repairMojibake(text) {
+  const replacements = new Map([
+    ["ðŸ‘‹", "👋"],
+    ["ðŸ™‚", "🙂"],
+    ["ðŸ¤–", "🤖"],
+    ["âœ…", "✅"],
+    ["â€œ", "“"],
+    ["â€", "”"],
+    ["â€™", "’"],
+    ["â€“", "–"],
+    ["â€”", "—"],
+    ["Ã€", "À"],
+    ["Ã‰", "É"],
+    ["Ãˆ", "È"],
+    ["Ã‡", "Ç"],
+    ["Ã ", "à"],
+    ["Ã©", "é"],
+    ["Ã¨", "è"],
+    ["Ãª", "ê"],
+    ["Ã«", "ë"],
+    ["Ã®", "î"],
+    ["Ã¯", "ï"],
+    ["Ã²", "ò"],
+    ["Ã´", "ô"],
+    ["Ã¶", "ö"],
+    ["Ã¹", "ù"],
+    ["Ã»", "û"],
+    ["Ã¼", "ü"],
+    ["Ã§", "ç"]
+  ]);
+
+  let repaired = String(text || "");
+  for (const [broken, correct] of replacements) {
+    repaired = repaired.replaceAll(broken, correct);
+  }
+  return repaired;
+}
+
 function sanitizeHandyPayLanguage(text) {
-  return text
+  return repairMojibake(text)
     .replace(/\*\*([^*]+)\*\*/g, "*$1*")
     .replace(/\bdepo\b/gi, "alimentation")
     .replace(/\bdeposit\b/gi, "alimentation")
@@ -278,7 +317,9 @@ async function generateReply({ customerMessage, customerPhone }) {
 
   const currentKnowledge = loadKnowledgeBase();
   const systemPrompt = [
-    HANDYPAY_SYSTEM_RULES.replaceAll("{AGENT_NAME}", agentName),
+    repairMojibake(
+      HANDYPAY_SYSTEM_RULES.replaceAll("{AGENT_NAME}", agentName)
+    ),
     currentKnowledge
       ? `HandyPay current product and operations knowledge:\n${currentKnowledge}`
       : ""
@@ -318,4 +359,4 @@ async function generateReply({ customerMessage, customerPhone }) {
   return sanitizeHandyPayLanguage(fallbackReply(customerMessage, agentName));
 }
 
-module.exports = { generateReply, sanitizeHandyPayLanguage };
+module.exports = { generateReply, repairMojibake, sanitizeHandyPayLanguage };
