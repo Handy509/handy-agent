@@ -4,6 +4,7 @@ const os = require("os");
 const path = require("path");
 const test = require("node:test");
 
+process.env.KETHURA_SKIP_DOTENV = "true";
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kethura-connectors-"));
 process.env.KETHURA_ADMIN_TOKEN = "connector-test-token";
 process.env.SOCIAL_AUTO_POST_ENABLED = "false";

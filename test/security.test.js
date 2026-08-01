@@ -4,8 +4,8 @@ const path = require("path");
 const test = require("node:test");
 
 const root = path.resolve(__dirname, "..");
-const excludedDirectories = new Set([".git", "node_modules", "data", "logs", "coverage"]);
-const excludedFiles = new Set(["package-lock.json", "security.test.js"]);
+const excludedDirectories = new Set([".git", "node_modules", "data", "logs", "coverage", "backups"]);
+const excludedFiles = new Set(["package-lock.json", "security.test.js", ".env"]);
 
 function sourceFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

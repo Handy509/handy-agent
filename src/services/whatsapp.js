@@ -1,5 +1,6 @@
 const { config } = require("../config");
 const { logger } = require("../logger");
+const { repairOutboundText } = require("./textEncoding");
 
 function extractWhatsAppMessages(payload) {
   const entries = payload.entry || [];
@@ -25,11 +26,12 @@ function extractWhatsAppMessages(payload) {
 }
 
 async function sendWhatsAppText(to, body) {
+  const safeBody = repairOutboundText(body);
   if (!config.whatsappAccessToken) {
     logger.info(
       {
         recipientPresent: Boolean(to),
-        messageLength: String(body || "").length
+        messageLength: safeBody.length
       },
       "WhatsApp token missing; outbound reply skipped"
     );
@@ -49,7 +51,7 @@ async function sendWhatsAppText(to, body) {
       type: "text",
       text: {
         preview_url: false,
-        body
+        body: safeBody
       }
     })
   });

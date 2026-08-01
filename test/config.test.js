@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 const test = require("node:test");
 
+process.env.KETHURA_SKIP_DOTENV = "true";
+
 test("sensitive integrations are disabled or empty by default", () => {
   const { config } = require("../src/config");
 

@@ -1,4 +1,6 @@
-require("dotenv").config();
+if (process.env.KETHURA_SKIP_DOTENV !== "true") {
+  require("dotenv").config();
+}
 
 const config = {
   nodeEnv: process.env.NODE_ENV || "development",
