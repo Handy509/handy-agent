@@ -78,6 +78,8 @@ const config = {
   emailFailureLogCooldownSeconds: Number(process.env.EMAIL_FAILURE_LOG_COOLDOWN_SECONDS || 1800),
 
   handypayApiBaseUrl: process.env.HANDYPAY_API_BASE_URL || "",
+  handypayAdminBaseUrl:
+    process.env.HANDYPAY_ADMIN_BASE_URL || "https://handypayhaiti.com/Handy13",
   handypayApiToken: process.env.HANDYPAY_API_TOKEN || "",
   operationalConnectorTimeoutMs: Number(process.env.OPERATIONAL_CONNECTOR_TIMEOUT_MS || 10000),
   operationalConnectorRetryLimit: Number(process.env.OPERATIONAL_CONNECTOR_RETRY_LIMIT || 1),

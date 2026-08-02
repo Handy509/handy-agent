@@ -631,7 +631,7 @@ app.post("/api/chat", chatRateLimit, async (req, res, next) => {
         pageUrl ? `Page: ${pageUrl}` : "",
         `Message: ${userMessage.text}`,
         "",
-        `Reply later support is being prepared. For now, check ${config.publicBaseUrl}/api/chat/${sessionId}/messages`
+        `Open the secure HandyPay admin conversation: ${config.handypayAdminBaseUrl}/kethura-ai/conversations/${encodeURIComponent(sessionId)}`
       ].filter(Boolean).join("\n"));
     }
 
