@@ -171,6 +171,12 @@ app.post("/api/admin/kethura/connectors/refresh", requireAdmin, async (_req, res
 app.get("/admin/kethura/tasks", requireAdmin, async (_req, res, next) => {
   try {
     const data = await dashboard();
+    const escapeHtml = (value) => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
     res.type("html").send(`<!doctype html>
 <html><head><meta charset="utf-8"><title>Kéthura Tasks</title>
 <style>body{font-family:system-ui;background:#0f172a;color:#e5e7eb;margin:0;padding:24px}table{width:100%;border-collapse:collapse;background:#111827}td,th{padding:10px;border-bottom:1px solid #243044;text-align:left}.cards{display:flex;gap:12px;margin:16px 0}.card{background:#111827;border:1px solid #243044;border-radius:8px;padding:14px}button{border:0;border-radius:6px;padding:7px 10px;margin-right:6px}</style></head>
@@ -181,7 +187,7 @@ app.get("/admin/kethura/tasks", requireAdmin, async (_req, res, next) => {
 ${data.tasks
       .map(
         (task) =>
-          `<tr><td>${task.priority}</td><td>${task.status}</td><td>${task.source}</td><td>${task.retries}</td><td>${task.lastRunAt || ""}</td><td>${task.title}</td><td>retry approve reject pause</td></tr>`
+          `<tr><td>${escapeHtml(task.priority)}</td><td>${escapeHtml(task.status)}</td><td>${escapeHtml(task.source)}</td><td>${escapeHtml(task.retries)}</td><td>${escapeHtml(task.lastRunAt || "")}</td><td>${escapeHtml(task.title)}</td><td>retry approve reject pause</td></tr>`
       )
       .join("")}</tbody></table></body></html>`);
   } catch (error) {

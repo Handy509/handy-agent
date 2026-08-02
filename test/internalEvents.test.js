@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { config } = require("../src/config");
 const {
   acceptInternalEvent,
   processEvent,
@@ -140,6 +141,8 @@ test("WhatsApp failure stays queued for retry", async () => {
 });
 
 test("duplicate event is not sent twice", async () => {
+  const originalAdmins = config.adminWhatsAppNumbers;
+  config.adminWhatsAppNumbers = ["447830669294"];
   let sends = 0;
   const payload = {
     event_id: `duplicate-${Date.now()}`,
@@ -150,7 +153,27 @@ test("duplicate event is not sent twice", async () => {
     sends += 1;
     return { ok: true };
   };
-  await acceptInternalEvent(payload, { send });
-  await acceptInternalEvent(payload, { send });
-  assert.equal(sends, 1);
+  try {
+    await acceptInternalEvent(payload, { send });
+    await acceptInternalEvent(payload, { send });
+    assert.equal(sends, 1);
+  } finally {
+    config.adminWhatsAppNumbers = originalAdmins;
+  }
+});
+
+test("internal event rejects a recipient outside the configured admin allowlist", async () => {
+  const originalAdmins = config.adminWhatsAppNumbers;
+  config.adminWhatsAppNumbers = ["50933723947"];
+  try {
+    const result = await acceptInternalEvent({
+      event_id: `bad-recipient-${Date.now()}`,
+      type: "xbet_notification_test",
+      admin_whatsapp: "447830669294"
+    }, { send: async () => ({ ok: true }) });
+    assert.equal(result.statusCode, 422);
+    assert.equal(result.body.error, "invalid_payload");
+  } finally {
+    config.adminWhatsAppNumbers = originalAdmins;
+  }
 });

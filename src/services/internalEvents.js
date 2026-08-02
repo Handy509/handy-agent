@@ -158,6 +158,18 @@ function templateForEvent(event) {
 async function signedCallback(event) {
   if (!event.callback_url) return;
 
+  let callback;
+  try {
+    callback = new URL(event.callback_url);
+  } catch (_error) {
+    logger.warn({ eventId: event.event_id }, "Invalid internal callback URL");
+    return;
+  }
+  if (!config.internalCallbackOrigins.includes(callback.origin)) {
+    logger.warn({ eventId: event.event_id }, "Internal callback origin is not allowed");
+    return;
+  }
+
   const payload = JSON.stringify({
     event_id: event.event_id,
     request_id: event.request_id || null,
@@ -169,7 +181,7 @@ async function signedCallback(event) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
 
   try {
-    await fetch(event.callback_url, {
+    await fetch(callback.toString(), {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -229,7 +241,8 @@ async function acceptInternalEvent(payload, options = {}) {
   if (!supportedTypes.has(payload.type)) {
     return { statusCode: 422, body: { ok: false, error: "unsupported_type" } };
   }
-  if (!payload.event_id || !payload.admin_whatsapp) {
+  const recipient = String(payload.admin_whatsapp || "").replace(/\D/g, "");
+  if (!payload.event_id || !recipient || !config.adminWhatsAppNumbers.includes(recipient)) {
     return { statusCode: 422, body: { ok: false, error: "invalid_payload" } };
   }
 
@@ -251,6 +264,7 @@ async function acceptInternalEvent(payload, options = {}) {
   const event = {
     ...(existing || {}),
     ...payload,
+    admin_whatsapp: recipient,
     status: existing?.status || "queued",
     attempts: existing?.attempts || 0,
     received_at: existing?.received_at || new Date().toISOString()

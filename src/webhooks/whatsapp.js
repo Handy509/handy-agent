@@ -12,7 +12,7 @@ const { analyzeResponse } = require("../services/responseQuality");
 const whatsappRouter = express.Router();
 
 function verifyWhatsAppSignature(req) {
-  if (!config.whatsappAppSecret) return !config.whatsappRequireSignature;
+  if (!config.whatsappAppSecret) return false;
 
   const supplied = String(req.headers["x-hub-signature-256"] || "");
   const expected = `sha256=${crypto

@@ -40,6 +40,10 @@ const config = {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean),
+  internalCallbackOrigins: (process.env.KETHURA_INTERNAL_CALLBACK_ORIGINS || "")
+    .split(",")
+    .map((item) => item.trim().replace(/\/$/, ""))
+    .filter(Boolean),
   internalMaxTimestampSkewSeconds: Number(
     process.env.KETHURA_INTERNAL_MAX_TIMESTAMP_SKEW_SECONDS || 300
   ),
